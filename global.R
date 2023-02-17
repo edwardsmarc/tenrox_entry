@@ -6,45 +6,50 @@ library(lubridate)
 library(excelR)
 
 lastmon <- function(x) 7 * floor(as.numeric(x-1+4)/7) + as.Date(1-4, origin="1970-01-01")
-
+mdy <- function(x) paste(month(x, label = T), day(x), year(x), sep = "/")
 
 timesheet_prep <- function(timesheet){
   
   timesheet %>% 
   mutate(duration = (timesheet$`End Time` - timesheet$`Start Time`)/60/60,
-         date = as_date(`Start Date`),
-         mdy = paste(month(date, label = T), day(date), year(date), sep = "/")) %>%
+         date = as_date(`Start Date`)) %>%
   filter(!is.na(Categories)) %>%
-  arrange(date, `Start Time`)
+  arrange(desc(date), `Start Time`)
 }
 
 
-full_table <- function(prepped_timesheet){
+full_table <- function(timesheet){
   
-  tibble(`Date (M/D/Y)` = prepped_timesheet$mdy,
-         Week = as.character(lastmon(prepped_timesheet$date)),
+  prepped_timesheet <- timesheet_prep(timesheet)
+  
+  week <- lastmon(prepped_timesheet$date)
+  
+  tibble(Date = mdy(prepped_timesheet$date),
+         Week = week,
          Hours = as.numeric(prepped_timesheet$duration),
-         `Project/Activity` = prepped_timesheet$Categories,
-         `Deliverable/Details` = prepped_timesheet$Subject) %>%
-    filter(Week <= lastmon(Sys.Date()))
+         Project = prepped_timesheet$Categories,
+         Details = prepped_timesheet$Subject) %>%
+    filter(Week <= lastmon(Sys.Date())) %>%
+    mutate(Week = mdy(Week))
 }
 
 
-weekly_sums <- function(x){
-  x %>% 
-    group_by(`Project/Activity`, Week) %>% 
-    summarise(Hours = sum(Hours)) %>%
-    arrange(Week)
-}
-
-render_table_function <- function(df, csv_path){
+weekly_sums <- function(timesheet){
   
-  renderExcel({
-    
-    req(csv_path)
-    
-    excelTable(df)
-    
-  })
-  
+  full_table(timesheet_prep(timesheet)) %>% 
+    group_by(Week, Project) %>% 
+    summarise(Hours = sum(Hours))
 }
+
+hours_this_week <- function(timesheet){
+  full_table(timesheet_prep(timesheet)) %>%
+    filter(Week == mdy(lastmon(Sys.Date()))) %>%
+    summarise(sum = sum(Hours)) %>%
+    pull(sum) %>%
+    round(1)
+}
+
+full_columns = data.frame(title=c('Date', 'Week of', 'Hours', 'Project', 'Details'),
+                     width= c(100, 100, 100, 200, 300))
+weekly_columns = data.frame(title=c('Week of', 'Project', 'Hours'),
+                     width= c(100, 300, 100))
