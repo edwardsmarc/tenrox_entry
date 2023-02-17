@@ -1,6 +1,7 @@
 library(shiny)
 library(shinydashboard)
-library(tidyverse)
+library(dplyr)
+library(readr)
 library(lubridate)
 library(excelR)
 
