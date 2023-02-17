@@ -1,4 +1,4 @@
-source("global.r", local = TRUE)
+source("global.R", local = TRUE)
 
 ui <- dashboardPage(
   dashboardHeader(title = "Tenrox entry app"),
